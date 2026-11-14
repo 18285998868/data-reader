@@ -99,7 +99,8 @@ print(data["report"]["rows"], list(data["columns"]))
 2. 默认 `bad_rows = "fail"`；`skip` 只跳过坏行，文件级损坏始终失败。
 3. daily 与 monthly 都扫描；daily 覆盖的 UTC 日丢弃 monthly 行；被 daily 全覆盖的 monthly 文件直接跳过读取.
 4. K 线要求严格递增且 `close_time` 与 interval 一致；缺口只计数不填充。
-5. liquidationSnapshot 的全行精确重复会去重并写入 `duplicates_removed`。
+5. spot 2025-01 起的微秒时间戳统一归一化为毫秒；输出时间列始终是毫秒。
+6. liquidationSnapshot 的全行精确重复会去重并写入 `duplicates_removed`。
 
 ## 模块八：验收
 

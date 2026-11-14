@@ -125,7 +125,10 @@ fn parse_row(
         count: non_negative_i64(row, 8, "count")?,
         taker_buy_volume: non_negative_f64(row, 9, "taker_buy_volume")?,
         taker_buy_quote_volume: non_negative_f64(row, 10, "taker_buy_quote_volume")?,
-        ignore: non_negative_i64(row, 11, "ignore")?,
+        // Early spot archives put arbitrary fractional values in the
+        // documented "ignore" column (for example 8733.91139481). Keep the
+        // column integral and truncate; the field carries no meaning.
+        ignore: non_negative_f64(row, 11, "ignore")? as i64,
     })
 }
 
@@ -214,6 +217,8 @@ mod tests {
     }
 
     const JUNE_2023: &str = "1685577600000,27210.36,27224.55,27210.35,27215.53,56.34942,1685577659999,1533688.30709290,819,28.38114,772502.81811770,0";
+    const JANUARY_2025: &str = "1735689600000000,93576.00000000,95151.15000000,92888.00000000,94591.79000000,10373.32613000,1735775999999999,975444194.13799830,1516556,5347.73648000,502914035.64059070,0";
+    const AUGUST_2017: &str = "1502928000000,4261.48000000,4485.39000000,4200.74000000,4285.08000000,795.15037700,1503014399999,3454770.05073206,3427,616.24854100,2678216.40060401,8733.91139481";
 
     #[test]
     fn all_twelve_fields_are_kept() {
@@ -223,6 +228,20 @@ mod tests {
         assert_eq!(row.count, 819);
         assert!((row.quote_volume - 1_533_688.307_092_9).abs() < 1e-6);
         assert_eq!(row.ignore, 0);
+    }
+
+    #[test]
+    fn fractional_ignore_column_is_truncated() {
+        let row = parse(AUGUST_2017, Interval::D1, false).unwrap();
+        assert_eq!(row.ignore, 8733);
+        assert_eq!(row.open_time, 1_502_928_000_000);
+    }
+
+    #[test]
+    fn microsecond_timestamps_are_normalized() {
+        let row = parse(JANUARY_2025, Interval::D1, false).unwrap();
+        assert_eq!(row.open_time, 1_735_689_600_000);
+        assert_eq!(row.close_time, 1_735_775_999_999);
     }
 
     #[test]

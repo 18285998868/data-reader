@@ -3,6 +3,16 @@
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Normalize Binance spot timestamps from microseconds to milliseconds. Spot
+  archives switch to microseconds on 2025-01-01, which previously failed the
+  kline `close_time` interval check.
+- Accept early spot klines whose documented "ignore" column contains a
+  fractional value; the value is truncated to the existing integer column.
+
 ## [0.2.0] - 2026-11-14
 
 ### Added

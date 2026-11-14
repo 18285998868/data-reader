@@ -21,6 +21,13 @@ use crate::types::BadRowPolicy;
 /// Maximum number of skipped-row samples kept per file.
 pub(crate) const MAX_SKIP_SAMPLES: usize = 5;
 
+/// Timestamps at or above this value are epoch microseconds.
+///
+/// Millisecond timestamps are currently around 1.7e12, while Binance spot
+/// archives switched to microseconds (around 1.7e15) on 2025-01-01. The two
+/// ranges cannot overlap for any archive this reader supports.
+const MICROSECOND_TIMESTAMP_THRESHOLD: i64 = 100_000_000_000_000;
+
 /// Header contract for one dataset/market combination.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Header {
@@ -266,13 +273,22 @@ pub(crate) fn non_negative_i64(
     Ok(value)
 }
 
-/// Parse a non-negative millisecond timestamp.
+/// Parse a non-negative epoch timestamp and normalize it to milliseconds.
+///
+/// Binance switched spot archives to microsecond timestamps on 2025-01-01.
+/// Values at or above [`MICROSECOND_TIMESTAMP_THRESHOLD`] are treated as
+/// microseconds and divided by 1,000; older millisecond values pass through.
 pub(crate) fn timestamp(
     row: &StringRecord,
     index: usize,
     name: &str,
 ) -> std::result::Result<i64, String> {
-    non_negative_i64(row, index, name)
+    let value = non_negative_i64(row, index, name)?;
+    Ok(if value >= MICROSECOND_TIMESTAMP_THRESHOLD {
+        value / 1_000
+    } else {
+        value
+    })
 }
 
 /// Parse `YYYY-MM-DD HH:MM:SS` as UTC epoch milliseconds.
@@ -503,6 +519,19 @@ mod tests {
         assert!(f64(&record, 1, "x").is_err());
         assert!(non_negative_f64(&record, 2, "x").is_err());
         assert!(positive_f64(&record, 2, "x").is_err());
+    }
+
+    #[test]
+    fn timestamps_are_normalized_to_milliseconds() {
+        let record = StringRecord::from(vec!["1735689600000000", "1735689600000"]);
+        assert_eq!(
+            timestamp(&record, 0, "open_time").unwrap(),
+            1_735_689_600_000
+        );
+        assert_eq!(
+            timestamp(&record, 1, "open_time").unwrap(),
+            1_735_689_600_000
+        );
     }
 
     #[test]
