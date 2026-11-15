@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 # OS: CachyOS
-# TIME: 2026-11-14
-# DOC: Offline quality gate for binance-data-reader
+# TIME: 2026-11-15
+# DOC: Offline quality gate for the data-reader workspace
 # LOGIC:
 #   STEP 1: check formatting
 #   STEP 2: check default, no-default and all-feature builds
 #   STEP 3: run clippy with warnings denied for every target
-#   STEP 4: run tests and doctests
+#   STEP 4: run default-feature tests and doctests
 #   STEP 5: build rustdoc with warnings denied
-#   STEP 6: run cargo-deny and cargo-audit (CI mode requires both)
-#   STEP 7: compile benchmarks when a benches/ directory exists
+#   STEP 6: run Python-feature tests only when NumPy is importable
+#   STEP 7: run cargo-deny and cargo-audit (CI mode requires both)
+#   STEP 8: compile benchmarks when a benches/ directory exists
 # USAGE:
 #   ./scripts/check.sh [--ci]
 #
 # Q:
 #   Q1: This gate is offline and does not read real archives. Run the smoke
-#       request in config/00.smoke.toml separately.
+#       requests in each crate's config/00.smoke.toml separately.
 #   Q2: CI mode fails when cargo-deny or cargo-audit is missing; local runs
 #       print a skip instead.
 
@@ -61,16 +62,27 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
 info "tests"
 if command -v cargo-nextest >/dev/null; then
-    cargo nextest run --workspace --all-features --locked
+    cargo nextest run --workspace --locked
 else
-    cargo test --workspace --all-features --locked
+    cargo test --workspace --locked
 fi
 
 info "doctests"
-cargo test --workspace --doc --all-features --locked
+cargo test --workspace --doc --locked
 
 info "rustdoc"
 RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features --locked
+
+if python3 -c 'import numpy' >/dev/null 2>&1; then
+    info "Python-feature tests"
+    if command -v cargo-nextest >/dev/null; then
+        cargo nextest run --workspace --all-features --locked
+    else
+        cargo test --workspace --all-features --locked
+    fi
+else
+    info "skip Python-feature tests (NumPy is not importable by python3)"
+fi
 
 if ((ci)); then
     command -v cargo-deny >/dev/null || {

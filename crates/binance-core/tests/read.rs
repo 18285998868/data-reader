@@ -9,7 +9,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use binance_data_reader::{BadRowPolicy, Config, Dataset, Error, Interval, Market, read};
+use binance_core::{BadRowPolicy, Config, Dataset, Error, Interval, Market, read};
 use common::{KLINE_HEADER, date, day_start, kline, write_archive};
 use zip::write::SimpleFileOptions;
 
@@ -133,7 +133,7 @@ fn daily_and_monthly_merge_prefers_daily_cover() {
         .table
         .columns()
         .iter()
-        .map(binance_data_reader::Column::name)
+        .map(binance_core::Column::name)
         .collect();
     assert_eq!(
         names,
@@ -393,12 +393,11 @@ fn every_interval_accepts_its_archive_close_time() {
     let root = tmp.path();
 
     for interval in Interval::ALL {
-        let (cadence, day) =
-            if interval.available_for(Market::Spot, binance_data_reader::Period::Daily) {
-                ("daily", date(2023, 6, 25))
-            } else {
-                ("monthly", date(2023, 6, 1))
-            };
+        let (cadence, day) = if interval.available_for(Market::Spot, binance_core::Period::Daily) {
+            ("daily", date(2023, 6, 25))
+        } else {
+            ("monthly", date(2023, 6, 1))
+        };
         let open = day_start(day);
         let stem = format!("BTCUSDT-{interval}-{}", cadence_stem_suffix(cadence, day));
         let csv = format!("{}\n{}\n", KLINE_HEADER, kline(open, interval, 100.0));

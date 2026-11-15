@@ -33,7 +33,7 @@ pub struct DatasetData {
 /// # Examples
 ///
 /// ```no_run
-/// use binance_data_reader::{Config, Dataset, read};
+/// use binance_core::{Config, Dataset, read};
 ///
 /// let config = Config::builder("/data/data/binance", Dataset::Klines, "BTCUSDT")
 ///     .interval("1m".parse()?)

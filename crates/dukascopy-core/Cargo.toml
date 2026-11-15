@@ -1,0 +1,39 @@
+[package]
+name = "dukascopy-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Load Dukascopy public archive candles into column vectors."
+readme = "README.md"
+keywords = ["dukascopy", "candles", "ohlcv", "market-data"]
+categories = ["finance", "parser-implementations"]
+
+[lib]
+name = "dukascopy_core"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Python extension (`maturin`); keep opt-in so Rust-only users do not build PyO3.
+python = ["dep:pyo3", "dep:numpy"]
+
+[dependencies]
+chrono.workspace = true
+lzma-rust2.workspace = true
+numpy = { workspace = true, optional = true }
+pyo3 = { workspace = true, optional = true }
+rayon.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+lzma-rust2 = { workspace = true, features = ["encoder"] }
+tempfile.workspace = true
+toml.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

@@ -7,7 +7,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use binance_data_reader::Interval;
+use binance_core::Interval;
 use chrono::NaiveDate;
 use zip::write::SimpleFileOptions;
 

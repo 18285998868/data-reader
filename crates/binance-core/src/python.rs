@@ -25,7 +25,7 @@ use serde_json::Value;
 use crate::{BadRowPolicy, CatalogFilter, Config, Dataset, Interval, Market};
 
 #[pymodule]
-fn binance_data_reader(module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn binance_core(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(read, module)?)?;
     module.add_function(wrap_pyfunction!(catalog, module)?)?;
     Ok(())

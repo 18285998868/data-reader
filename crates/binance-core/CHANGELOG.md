@@ -5,6 +5,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** crate renamed from `binance-data-reader` to `binance-core`
+  (Rust lib `binance_core`, CLI `binance-core`, Python module `binance_core`)
+  and moved into the `data-reader` workspace.
+
 ### Fixed
 
 - Normalize Binance spot timestamps from microseconds to milliseconds. Spot

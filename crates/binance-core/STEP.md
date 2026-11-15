@@ -7,8 +7,8 @@
 3. `Config` 只能由 builder 或 TOML 构造，构造时完成全部交叉校验。
 
 ```bash
-cargo run --release -- read -c config/00.smoke.toml
-cargo run --release -- list --root /data/data/binance --dataset klines
+cargo run -p binance-core --release -- read -c crates/binance-core/config/00.smoke.toml
+cargo run -p binance-core --release -- list --root /data/data/binance --dataset klines
 ```
 
 ## 模块二：配置校验
@@ -109,9 +109,8 @@ src/main.rs -> exit_code
 
 ```bash
 ./scripts/check.sh
-cargo build --release
-./target/release/binance-data-reader read -c config/00.smoke.toml > /tmp/smoke.json
+cargo run -p binance-core --release -- read -c crates/binance-core/config/00.smoke.toml > /tmp/smoke.json
 python -c 'import json; d=json.load(open("/tmp/smoke.json")); print(d["report"]["rows"], d["columns"]["open_time"][0])'
-./target/release/binance-data-reader read -c config/00.smoke.toml > /tmp/smoke2.json
+cargo run -p binance-core --release -- read -c crates/binance-core/config/00.smoke.toml > /tmp/smoke2.json
 python -c 'import json; a=json.load(open("/tmp/smoke.json")); b=json.load(open("/tmp/smoke2.json")); assert a["columns"] == b["columns"] and a["report"]["rows"] == b["report"]["rows"]'
 ```

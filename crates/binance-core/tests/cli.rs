@@ -8,12 +8,12 @@ mod common;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use binance_data_reader::Interval;
+use binance_core::Interval;
 use common::{KLINE_HEADER, date, day_start, kline, write_archive};
 use serde_json::Value;
 
 fn run(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_binance-data-reader"))
+    Command::new(env!("CARGO_BIN_EXE_binance-core"))
         .args(args)
         .output()
         .expect("spawn reader binary")

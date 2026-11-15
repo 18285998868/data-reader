@@ -5,7 +5,7 @@
 
 mod common;
 
-use binance_data_reader::{CatalogFilter, Dataset, Interval, Market, Period, catalog};
+use binance_core::{CatalogFilter, Dataset, Interval, Market, Period, catalog};
 use common::{KLINE_HEADER, date, kline, write_archive};
 use std::path::Path;
 

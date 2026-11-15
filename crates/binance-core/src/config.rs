@@ -18,7 +18,7 @@ use crate::types::{BadRowPolicy, Dataset, Interval, Market, Symbol};
 /// # Examples
 ///
 /// ```
-/// use binance_data_reader::{Config, Dataset};
+/// use binance_core::{Config, Dataset};
 ///
 /// let config = Config::builder("/data/data/binance", Dataset::Klines, "BTCUSDT")
 ///     .interval("1m".parse()?)

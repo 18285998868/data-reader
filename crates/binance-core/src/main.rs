@@ -8,13 +8,11 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
 
-use binance_data_reader::{
-    CatalogFilter, Config, Dataset, Error, LoadReport, Table, catalog, read,
-};
+use binance_core::{CatalogFilter, Config, Dataset, Error, LoadReport, Table, catalog, read};
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "binance-data-reader",
+    name = "binance-core",
     version,
     about = "Read Binance public archive datasets into JSON columns"
 )]

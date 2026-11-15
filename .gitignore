@@ -1,6 +1,8 @@
 /target
-/config.toml
+/crates/*/target
 /data
+/config.toml
+/config.test.toml
 /log
 /reports
 *.so

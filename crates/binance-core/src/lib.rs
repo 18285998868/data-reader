@@ -36,7 +36,7 @@
 //!
 //! # Features
 //!
-//! - `python` (off by default): build the `binance_data_reader` extension
+//! - `python` (off by default): build the `binance_core` extension
 //!   module with `read(config)` and `catalog(root, ...)`.
 //!
 //! # Toolchain
@@ -46,7 +46,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use binance_data_reader::{Config, Dataset, read};
+//! use binance_core::{Config, Dataset, read};
 //!
 //! let config = Config::builder("/data/data/binance", Dataset::Klines, "BTCUSDT")
 //!     .interval("1m".parse()?)
