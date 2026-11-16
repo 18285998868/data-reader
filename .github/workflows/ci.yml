@@ -1,0 +1,42 @@
+name: CI
+
+# The project intentionally tracks the latest stable Rust and has no MSRV
+# (see Cargo.toml and rust-toolchain.toml); every job uses stable.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit,cargo-nextest
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install NumPy for Python-feature tests
+        run: python -m pip install --upgrade pip numpy
+
+      - name: Run offline quality gate
+        run: ./scripts/check.sh --ci
