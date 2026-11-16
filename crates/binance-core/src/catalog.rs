@@ -176,7 +176,7 @@ pub fn catalog(root: &Path, filter: &CatalogFilter) -> Result<Catalog> {
                                 dataset,
                                 symbol,
                                 Some(interval),
-                            );
+                            )?;
                         }
                     } else {
                         push_entry(
@@ -187,7 +187,7 @@ pub fn catalog(root: &Path, filter: &CatalogFilter) -> Result<Catalog> {
                             dataset,
                             symbol,
                             None,
-                        );
+                        )?;
                     }
                 }
             }
@@ -217,10 +217,10 @@ fn push_entry(
     dataset: Dataset,
     symbol: &str,
     interval: Option<Interval>,
-) {
-    let (files, first_date, last_date) = summarize(dir, dataset, symbol, interval, period);
+) -> Result<()> {
+    let (files, first_date, last_date) = summarize(dir, dataset, symbol, interval, period)?;
     if files == 0 {
-        return;
+        return Ok(());
     }
     entries.push(CatalogEntry {
         market,
@@ -232,23 +232,23 @@ fn push_entry(
         first_date,
         last_date,
     });
+    Ok(())
 }
 
 /// Count valid archive files and their date range, ignoring unrelated names.
+///
+/// # Errors
+///
+/// Returns [`Error::Io`] when `dir` cannot be read.
 fn summarize(
     dir: &Path,
     dataset: Dataset,
     symbol: &str,
     interval: Option<Interval>,
     period: Period,
-) -> (usize, Option<NaiveDate>, Option<NaiveDate>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(error) => {
-            tracing::debug!(path = %dir.display(), %error, "catalog could not read directory");
-            return (0, None, None);
-        }
-    };
+) -> Result<(usize, Option<NaiveDate>, Option<NaiveDate>)> {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|error| Error::io(format!("read_dir {}", dir.display()), error))?;
     let prefix = format!(
         "{}-{}-",
         dataset.storage_symbol(symbol),
@@ -284,7 +284,7 @@ fn summarize(
         last = Some(last.map_or(date, |current: NaiveDate| current.max(date)));
     }
 
-    (files, first, last)
+    Ok((files, first, last))
 }
 
 #[cfg(test)]
@@ -300,6 +300,22 @@ mod tests {
 
     fn date(year: i32, month: u32, day: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    #[test]
+    fn summarize_propagates_read_dir_errors() {
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("plain-file");
+        fs::write(&file, b"x").unwrap();
+        let error = summarize(
+            &file,
+            Dataset::Klines,
+            "BTCUSDT",
+            Some(Interval::M1),
+            Period::Monthly,
+        )
+        .unwrap_err();
+        assert!(matches!(error, Error::Io { .. }));
     }
 
     #[test]
