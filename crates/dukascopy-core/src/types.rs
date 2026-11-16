@@ -13,6 +13,7 @@ use crate::error::ReaderError;
 /// The archive stores one file per calendar bucket: `M1` per day, `H1` per
 /// month, `D1` per year.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[non_exhaustive]
 pub enum Timeframe {
     /// One-minute candles, bucketed by UTC day.
     M1,
@@ -82,6 +83,7 @@ impl FromStr for Timeframe {
 
 /// Side of the quote a candle series describes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[non_exhaustive]
 pub enum PriceType {
     /// Bid-side candles (`BID_*.bi5`).
     Bid,

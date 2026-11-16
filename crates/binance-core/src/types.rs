@@ -18,6 +18,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Binance market, matching the archive path segment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[non_exhaustive]
 pub enum Market {
     /// Spot market: `data/spot`.
     Spot,
@@ -79,6 +80,7 @@ impl<'de> Deserialize<'de> for Market {
 
 /// Archive cadence: one file per day or one file per month.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum Period {
     /// One file per UTC day, named `YYYY-MM-DD`.
     Daily,
@@ -199,6 +201,7 @@ impl<'de> Deserialize<'de> for Period {
 
 /// One archive dataset family, including regular klines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum Dataset {
     /// Aggregate trades (`aggTrades`).
     AggTrades,
@@ -378,6 +381,7 @@ impl<'de> Deserialize<'de> for Dataset {
 
 /// Kline interval, matching archive directory names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
 pub enum Interval {
     /// 1-second klines (spot only).
     S1,
@@ -458,12 +462,21 @@ impl Interval {
     }
 
     /// Whether the archive publishes this interval for a market/cadence pair.
+    ///
+    /// Classification is derived from [`step_ms`](Self::step_ms), not from
+    /// enum declaration order, so reordering [`Interval`] cannot change the
+    /// support matrix.
     #[must_use]
     pub const fn available_for(self, market: Market, period: Period) -> bool {
+        const DAY_MS: i64 = 86_400_000;
         match (market, period) {
-            (Market::Spot, Period::Daily) => self as u8 <= Self::D1 as u8,
+            (Market::Spot, Period::Daily) => {
+                matches!(self.step_ms(), Some(step) if step <= DAY_MS)
+            }
             (Market::Spot, Period::Monthly) => true,
-            (_, Period::Daily) => self as u8 >= Self::M1 as u8 && self as u8 <= Self::D1 as u8,
+            (_, Period::Daily) => {
+                matches!(self.step_ms(), Some(step) if step >= 60_000 && step <= DAY_MS)
+            }
             (_, Period::Monthly) => !matches!(self, Self::S1),
         }
     }
@@ -631,6 +644,7 @@ impl<'de> Deserialize<'de> for Symbol {
 /// always fatal. Row-level damage can be fatal or skipped; skipped rows are
 /// counted and sampled in the [`LoadReport`](crate::LoadReport).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum BadRowPolicy {
     /// Abort the load on the first malformed row.
     #[default]
