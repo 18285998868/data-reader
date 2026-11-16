@@ -23,6 +23,10 @@ use crate::layout::BucketKey;
 pub(crate) const RECORD_SIZE: usize = 24;
 /// Dukascopy prices are stored as integers scaled by 100_000.
 const PRICE_SCALE: f64 = 100_000.0;
+/// Maximum decompressed payload accepted for one `.bi5` file (64 MiB).
+const MAX_DECODED_BYTES: u64 = 64 * 1024 * 1024;
+/// Maximum LZMA decoder memory (dictionary plus state) per file (64 MiB).
+const MAX_LZMA_MEM_KIB: u32 = 64 * 1024;
 
 /// One decoded file, already split into columns.
 #[derive(Debug, Default)]
@@ -41,13 +45,29 @@ pub(crate) struct DecodedFile {
 
 /// Open, decompress and decode one `.bi5` file.
 pub(crate) fn decode_file(path: &Path, bucket: BucketKey) -> Result<DecodedFile> {
+    decode_file_with_limits(path, bucket, MAX_DECODED_BYTES, MAX_LZMA_MEM_KIB)
+}
+
+fn decode_file_with_limits(
+    path: &Path,
+    bucket: BucketKey,
+    max_decoded_bytes: u64,
+    max_lzma_mem_kib: u32,
+) -> Result<DecodedFile> {
     let file = std::fs::File::open(path).map_err(|e| ReaderError::io(path, e))?;
     let reader = std::io::BufReader::new(file);
-    let mut lzma = lzma_rust2::LzmaReader::new_mem_limit(reader, u32::MAX, None)
+    let lzma = lzma_rust2::LzmaReader::new_mem_limit(reader, max_lzma_mem_kib, None)
         .map_err(|e| ReaderError::corrupt(path, format!("lzma header: {e}")))?;
     let mut raw = Vec::new();
-    lzma.read_to_end(&mut raw)
+    lzma.take(max_decoded_bytes.saturating_add(1))
+        .read_to_end(&mut raw)
         .map_err(|e| ReaderError::corrupt(path, format!("lzma: {e}")))?;
+    if raw.len() as u64 > max_decoded_bytes {
+        return Err(ReaderError::corrupt(
+            path,
+            format!("decompressed size exceeds the {max_decoded_bytes}-byte limit"),
+        ));
+    }
     decode_records(&raw, bucket, path)
 }
 
@@ -229,6 +249,47 @@ mod tests {
         std::fs::write(&path, b"definitely not lzma").unwrap();
         let err = decode_file(&path, bucket(crate::types::Timeframe::D1, 2025, 1, 1)).unwrap_err();
         assert!(matches!(err, ReaderError::CorruptFile { .. }));
+    }
+
+    fn fixture() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/dukascopy/EURUSD/2025/BID_candles_day_1.bi5")
+    }
+
+    #[test]
+    fn decompressed_size_limit_is_enforced() {
+        let err = decode_file_with_limits(
+            &fixture(),
+            bucket(crate::types::Timeframe::D1, 2025, 1, 1),
+            1,
+            MAX_LZMA_MEM_KIB,
+        )
+        .unwrap_err();
+        match err {
+            ReaderError::CorruptFile { detail, .. } => assert!(detail.contains("exceeds")),
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn decoder_memory_limit_is_enforced() {
+        let err = decode_file_with_limits(
+            &fixture(),
+            bucket(crate::types::Timeframe::D1, 2025, 1, 1),
+            MAX_DECODED_BYTES,
+            1,
+        )
+        .unwrap_err();
+        match err {
+            ReaderError::CorruptFile { detail, .. } => assert!(detail.contains("lzma header")),
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn default_limits_accept_the_real_fixture() {
+        let out = decode_file(&fixture(), bucket(crate::types::Timeframe::D1, 2025, 1, 1)).unwrap();
+        assert!(!out.time_ms.is_empty());
     }
 
     #[test]
