@@ -144,7 +144,10 @@ impl Period {
     pub fn parse_file_date(self, stem: &str) -> Option<Result<NaiveDate, String>> {
         let len = self.date_len();
         let start = stem.len().checked_sub(len)?;
-        let candidate = &stem[start..];
+        // `start` is a byte offset derived from the total length; a multi-byte
+        // character immediately before the date suffix can make it land inside
+        // a code point. Treat that as "not date-shaped" instead of panicking.
+        let candidate = stem.get(start..)?;
         let shaped = match self {
             Self::Daily => {
                 candidate.as_bytes().get(4) == Some(&b'-')
@@ -751,6 +754,14 @@ mod tests {
                 .unwrap()
                 .is_err()
         );
+    }
+
+    #[test]
+    fn file_dates_reject_non_ascii_suffix_without_panicking() {
+        // The byte offset of the date suffix falls inside the euro sign, so
+        // slicing must not panic.
+        assert!(Period::Daily.parse_file_date("a€12345678").is_none());
+        assert!(Period::Monthly.parse_file_date("a€12345").is_none());
     }
 
     #[test]
