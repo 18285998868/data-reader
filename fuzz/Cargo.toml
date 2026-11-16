@@ -1,0 +1,38 @@
+[package]
+name = "data-reader-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+binance-core = { path = "../crates/binance-core" }
+dukascopy-core = { path = "../crates/dukascopy-core" }
+libfuzzer-sys = "0.4"
+toml = "1.1"
+
+[[bin]]
+name = "binance_filename"
+path = "fuzz_targets/binance_filename.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "binance_config"
+path = "fuzz_targets/binance_config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dukascopy_config"
+path = "fuzz_targets/dukascopy_config.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+resolver = "3"

@@ -1,0 +1,38 @@
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz parsers
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fuzz
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz -> target
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+
+      - name: Fuzz Binance filename and value parsers
+        run: cargo fuzz run binance_filename -- -max_total_time=60
+
+      - name: Fuzz Binance TOML config
+        run: cargo fuzz run binance_config -- -max_total_time=60
+
+      - name: Fuzz Dukascopy TOML config
+        run: cargo fuzz run dukascopy_config -- -max_total_time=60

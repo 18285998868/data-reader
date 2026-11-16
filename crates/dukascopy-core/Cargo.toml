@@ -30,10 +30,15 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+criterion.workspace = true
 lzma-rust2 = { workspace = true, features = ["encoder"] }
 tempfile.workspace = true
 toml.workspace = true
 tracing-subscriber.workspace = true
+
+[[bench]]
+name = "loading"
+harness = false
 
 [lints]
 workspace = true

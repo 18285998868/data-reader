@@ -5,11 +5,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Python type stubs (`dukascopy_core.pyi`) shipped with the wheel.
+- Criterion benchmark that plans, reads and decodes the real `.bi5` fixture.
+
 ### Changed
 
-- **Breaking:** crate renamed from `dukascopy-data-reader` to
+- Breaking: `Timeframe` and `PriceType` are `#[non_exhaustive]`.
+- Breaking: crate renamed from `dukascopy-data-reader` to
   `dukascopy-core` (Rust lib `dukascopy_core`, Python module
   `dukascopy_core`) and moved into the `data-reader` workspace.
+- Python dict configs reject unknown keys.
+
+### Fixed
+
+- Bound LZMA decoder memory and decompressed payload size per `.bi5`
+  (64 MiB each); oversized streams are reported as corrupt files.
 
 ## [0.2.0] - 2026-11-14
 

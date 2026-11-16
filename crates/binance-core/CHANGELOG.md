@@ -5,14 +5,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Python type stubs (`binance_core.pyi`) shipped with the wheel.
+- Property tests for file-date parsing and a Criterion parsing benchmark.
+
 ### Changed
 
-- **Breaking:** crate renamed from `binance-data-reader` to `binance-core`
+- Breaking: public enums are `#[non_exhaustive]`; downstream matches need
+  a wildcard arm.
+- Breaking: crate renamed from `binance-data-reader` to `binance-core`
   (Rust lib `binance_core`, CLI `binance-core`, Python module `binance_core`)
   and moved into the `data-reader` workspace.
+- `read` and `catalog` release the Python GIL while loading.
+- Python dict configs reject unknown keys; config/IO errors map to
+  `ValueError`/`OSError`/`FileNotFoundError`.
+- Decode archives in batches of 16 to bound peak memory.
+- Interval availability is derived from `step_ms`, not enum discriminants.
 
 ### Fixed
 
+- Non-ASCII filename suffixes no longer panic `Period::parse_file_date`.
+- `catalog` reports unreadable directories instead of returning empty entries.
 - Normalize Binance spot timestamps from microseconds to milliseconds. Spot
   archives switch to microseconds on 2025-01-01, which previously failed the
   kline `close_time` interval check.

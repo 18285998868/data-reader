@@ -1,5 +1,7 @@
 # data-reader
 
+[![CI](https://github.com/18285998868/data-reader/actions/workflows/ci.yml/badge.svg)](https://github.com/18285998868/data-reader/actions/workflows/ci.yml)
+
 Rust readers for local Binance and Dukascopy public archives. Both crates load,
 decode and validate archive data into typed columnar output; they do not
 download, transform or compute indicators.
@@ -27,6 +29,9 @@ cargo run -p dukascopy-core --example load -- crates/dukascopy-core/config/00.sm
 `./scripts/check.sh --ci` additionally requires `cargo-deny` and `cargo-audit`.
 Real archives are expected at the roots configured in each crate's
 `config/00.smoke.toml`.
+
+Benchmarks run with `cargo bench --workspace`. Fuzzing uses nightly and
+`cargo-fuzz`: `cd fuzz && cargo +nightly fuzz run binance_filename`.
 
 ## Python
 

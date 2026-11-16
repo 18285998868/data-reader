@@ -10,7 +10,7 @@
 #   STEP 5: build rustdoc with warnings denied
 #   STEP 6: run Python-feature tests only when NumPy is importable
 #   STEP 7: run cargo-deny and cargo-audit (CI mode requires both)
-#   STEP 8: compile benchmarks when a benches/ directory exists
+#   STEP 8: check benchmarks compile
 # USAGE:
 #   ./scripts/check.sh [--ci]
 #
@@ -107,9 +107,7 @@ else
     info "skip cargo audit (not installed)"
 fi
 
-if [[ -d benches ]]; then
-    info "compile benchmarks"
-    cargo bench --workspace --no-run --locked
-fi
+info "check benchmarks"
+cargo check --workspace --benches --locked
 
 info "offline gate passed"

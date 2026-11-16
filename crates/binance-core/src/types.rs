@@ -714,6 +714,7 @@ pub(crate) fn utc_day_index(timestamp_ms: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     fn date(year: i32, month: u32, day: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(year, month, day).unwrap()
@@ -854,5 +855,26 @@ mod tests {
         assert_eq!(utc_day_index(86_399_999), 0);
         assert_eq!(utc_day_index(86_400_000), 1);
         assert_eq!(utc_day_index(-1), -1);
+    }
+
+    proptest! {
+        #[test]
+        fn file_dates_round_trip(year in 1970..2100i32, month in 1..=12u32, day in 1..=28u32) {
+            let date = NaiveDate::from_ymd_opt(year, month, day).expect("generated date is valid");
+            for period in Period::ALL {
+                let stem = format!("BTCUSDT-1m-{}", period.format(date));
+                let parsed = period
+                    .parse_file_date(&stem)
+                    .expect("date-shaped stem is recognized")
+                    .expect("generated date parses");
+                prop_assert_eq!(parsed, period.start_of(date));
+            }
+        }
+
+        #[test]
+        fn file_date_parser_never_panics(stem in any::<String>()) {
+            let _ = Period::Daily.parse_file_date(&stem);
+            let _ = Period::Monthly.parse_file_date(&stem);
+        }
     }
 }
