@@ -16,3 +16,4 @@ numpy = ["numpy>=2"]
 bindings = "pyo3"
 module-name = "dukascopy_core"
 features = ["python"]
+include = ["dukascopy_core.pyi"]

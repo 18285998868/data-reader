@@ -83,6 +83,8 @@ data = r.read({"root": "/data/data/binance", "dataset": "trades",
 print(data["report"]["rows"], list(data["columns"]))
 ```
 
+dict 形式拒绝未知键；wheel 内含 `binance_core.pyi`，mypy/pyright 可直接获得类型提示。
+
 ## 模块六：输出结构
 
 1. `columns` 是 `{归档列名: 数组}`；空字段是 `null`。

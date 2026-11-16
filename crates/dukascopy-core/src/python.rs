@@ -28,6 +28,31 @@ use crate::error::ReaderError;
 use crate::report::LoadReport;
 use crate::types::{PriceType, Timeframe};
 
+/// Keys accepted by the dict form of the Python functions.
+const CONFIG_KEYS: [&str; 6] = [
+    "root",
+    "symbol",
+    "timeframe",
+    "price_type",
+    "start_date",
+    "end_date",
+];
+
+fn reject_unknown_keys(config: &Bound<'_, PyDict>, allowed: &[&str]) -> PyResult<()> {
+    for key in config.keys() {
+        let key = key
+            .extract::<String>()
+            .map_err(|_| PyTypeError::new_err("config keys must be strings"))?;
+        if !allowed.contains(&key.as_str()) {
+            return Err(PyValueError::new_err(format!(
+                "unknown config key: {key}; valid keys: {}",
+                allowed.join(", ")
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn extract_required<'py, T>(config: &Bound<'py, PyDict>, key: &str) -> PyResult<T>
 where
     T: for<'a> FromPyObject<'a, 'py>,
@@ -54,6 +79,7 @@ where
 }
 
 fn config_from_dict(config: &Bound<'_, PyDict>) -> PyResult<DataConfig> {
+    reject_unknown_keys(config, &CONFIG_KEYS)?;
     let root: String = extract_required(config, "root")?;
     let symbol: String = extract_required(config, "symbol")?;
     let timeframe: String = extract_required(config, "timeframe")?;
@@ -188,6 +214,21 @@ mod tests {
                     .to_string()
                     .contains("unsupported dukascopy timeframe")
             );
+        });
+    }
+
+    #[test]
+    fn unknown_key_is_a_value_error() {
+        Python::initialize();
+        Python::attach(|py| {
+            let config = PyDict::new(py);
+            config.set_item("root", "/tmp").unwrap();
+            config.set_item("symbol", "EURUSD").unwrap();
+            config.set_item("timeframe", "D1").unwrap();
+            config.set_item("typo", 1).unwrap();
+            let error = py_load_columns(py, &config).unwrap_err();
+            assert!(error.is_instance_of::<PyValueError>(py));
+            assert!(error.to_string().contains("unknown config key: typo"));
         });
     }
 

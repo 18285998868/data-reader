@@ -88,7 +88,7 @@ columns = dukascopy_core.load_columns({
 print(columns["time"][:3], columns["close"][-1])
 ```
 
-`load()` 返回 `(columns, report)`。Python 绑定与 Rust 共用同一套校验和加载路径。
+`load()` 返回 `(columns, report)`。Python 绑定与 Rust 共用同一套校验和加载路径。dict 形式拒绝未知键；wheel 内含 `dukascopy_core.pyi`，mypy/pyright 可直接获得类型提示。
 
 ## 处理语义
 

@@ -13,3 +13,4 @@ license = { text = "MIT" }
 bindings = "pyo3"
 features = ["python"]
 module-name = "binance_core"
+include = ["binance_core.pyi"]
