@@ -110,6 +110,11 @@ pub(crate) fn load(config: &Config, scan: &Scan) -> Result<Built> {
     }
 }
 
+/// Files decoded per parallel batch. A batch bounds peak memory to roughly
+/// one batch of decoded rows plus the final output instead of holding every
+/// archive's rows at once.
+const READ_BATCH: usize = 16;
+
 /// Read every selected file, validate row timestamps and merge.
 ///
 /// `parse` must not check the timestamp; this function validates it against
@@ -127,53 +132,70 @@ where
     P: Fn(&StringRecord) -> std::result::Result<T, String> + Sync,
     K: Fn(&T) -> i64 + Sync,
 {
-    let outcomes: Vec<Result<(crate::layout::ArchiveFile, FileRows<T>)>> = scan
-        .files
-        .par_iter()
-        .map(|file| {
-            let parse_row = |row: &StringRecord| {
-                let value = parse(row)?;
-                let timestamp = time(&value);
-                if !file.contains(timestamp) {
-                    return Err(format!(
-                        "timestamp {timestamp} is outside file period [{}, {})",
-                        file.start_ms, file.end_ms
-                    ));
-                }
-                Ok(value)
-            };
-            let rows = zip::read_csv(&file.path, header, config.bad_rows(), parse_row)?;
-            Ok((file.clone(), rows))
-        })
-        .collect();
+    read_dataset_batched(config, scan, header, parse, time, READ_BATCH)
+}
 
+fn read_dataset_batched<T, P, K>(
+    config: &Config,
+    scan: &Scan,
+    header: Header,
+    parse: P,
+    time: K,
+    batch_size: usize,
+) -> Result<LoadedRows<T>>
+where
+    T: Send,
+    P: Fn(&StringRecord) -> std::result::Result<T, String> + Sync,
+    K: Fn(&T) -> i64 + Sync,
+{
     let window = Window::new(config);
     let mut stats = Stats::default();
     let mut rows = Vec::new();
 
-    for outcome in outcomes {
-        let (file, file_rows) = outcome?;
-        stats.decoded += file_rows.rows.len();
-        stats.absorb(file_rows.skipped, &file_rows.samples);
+    for batch in scan.files.chunks(batch_size.max(1)) {
+        let outcomes: Vec<Result<(crate::layout::ArchiveFile, FileRows<T>)>> = batch
+            .par_iter()
+            .map(|file| {
+                let parse_row = |row: &StringRecord| {
+                    let value = parse(row)?;
+                    let timestamp = time(&value);
+                    if !file.contains(timestamp) {
+                        return Err(format!(
+                            "timestamp {timestamp} is outside file period [{}, {})",
+                            file.start_ms, file.end_ms
+                        ));
+                    }
+                    Ok(value)
+                };
+                let rows = zip::read_csv(&file.path, header, config.bad_rows(), parse_row)?;
+                Ok((file.clone(), rows))
+            })
+            .collect();
 
-        let monthly = file.period == Period::Monthly;
-        for row in file_rows.rows {
-            let timestamp = time(&row);
-            let day = utc_day_index(timestamp);
-            if monthly && scan.daily_days.contains(&day) {
-                stats.overlap_dropped += 1;
-                continue;
+        for outcome in outcomes {
+            let (file, file_rows) = outcome?;
+            stats.decoded += file_rows.rows.len();
+            stats.absorb(file_rows.skipped, &file_rows.samples);
+
+            let monthly = file.period == Period::Monthly;
+            for row in file_rows.rows {
+                let timestamp = time(&row);
+                let day = utc_day_index(timestamp);
+                if monthly && scan.daily_days.contains(&day) {
+                    stats.overlap_dropped += 1;
+                    continue;
+                }
+                if !window.contains(timestamp) {
+                    stats.window_dropped += 1;
+                    continue;
+                }
+                if monthly {
+                    stats.kept_monthly += 1;
+                } else {
+                    stats.kept_daily += 1;
+                }
+                rows.push(row);
             }
-            if !window.contains(timestamp) {
-                stats.window_dropped += 1;
-                continue;
-            }
-            if monthly {
-                stats.kept_monthly += 1;
-            } else {
-                stats.kept_daily += 1;
-            }
-            rows.push(row);
         }
     }
 
@@ -234,4 +256,75 @@ pub(crate) fn finish(
         gaps,
         duplicates_removed,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+    use std::io::Write;
+
+    use crate::layout::ArchiveFile;
+    use crate::source::csv::Header;
+
+    const HEADER: Header = Header::new(&["calc_time"], &[&["calc_time"]]);
+
+    fn write_zip(path: &std::path::Path, csv: &str) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = ::zip::ZipWriter::new(file);
+        zip.start_file("2024-01.csv", ::zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(csv.as_bytes()).unwrap();
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn batched_read_preserves_order_and_stats() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let jan_path = tmp.path().join("2024-01.zip");
+        let feb_path = tmp.path().join("2024-02.zip");
+        write_zip(&jan_path, "calc_time\n1704067200000\n");
+        write_zip(&feb_path, "calc_time\n1706745600000\n");
+
+        let jan = ArchiveFile::new(
+            jan_path,
+            Period::Monthly,
+            chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+        );
+        let feb = ArchiveFile::new(
+            feb_path,
+            Period::Monthly,
+            chrono::NaiveDate::from_ymd_opt(2024, 2, 1).unwrap(),
+        );
+        // Deliberately reverse file order; the merge must still sort by time.
+        let scan = Scan {
+            files: vec![feb, jan],
+            daily_days: HashSet::new(),
+            files_daily: 0,
+            files_monthly: 2,
+        };
+        let config = Config::builder(tmp.path(), Dataset::FundingRate, "BTCUSDT")
+            .build()
+            .unwrap();
+
+        let loaded = read_dataset_batched(
+            &config,
+            &scan,
+            HEADER,
+            |row: &StringRecord| {
+                row.get(0)
+                    .ok_or_else(|| "missing calc_time".to_owned())?
+                    .parse::<i64>()
+                    .map_err(|error| error.to_string())
+            },
+            |row| *row,
+            1,
+        )
+        .unwrap();
+
+        assert_eq!(loaded.rows, [1_704_067_200_000, 1_706_745_600_000]);
+        assert_eq!(loaded.stats.decoded, 2);
+        assert_eq!(loaded.stats.kept_monthly, 2);
+        assert_eq!(loaded.stats.skipped, 0);
+    }
 }
