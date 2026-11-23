@@ -29,10 +29,10 @@ jobs:
           tool: cargo-fuzz
 
       - name: Fuzz Binance filename and value parsers
-        run: cargo fuzz run binance_filename -- -max_total_time=60
+        run: cargo +nightly fuzz run binance_filename -- -max_total_time=60
 
       - name: Fuzz Binance TOML config
-        run: cargo fuzz run binance_config -- -max_total_time=60
+        run: cargo +nightly fuzz run binance_config -- -max_total_time=60
 
       - name: Fuzz Dukascopy TOML config
-        run: cargo fuzz run dukascopy_config -- -max_total_time=60
+        run: cargo +nightly fuzz run dukascopy_config -- -max_total_time=60
