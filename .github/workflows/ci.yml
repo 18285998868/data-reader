@@ -4,8 +4,8 @@ name: CI
 # (see Cargo.toml and rust-toolchain.toml); every job uses stable.
 
 on:
-  push:
-  pull_request:
+  # Automatic runs are disabled; trigger the gate manually from the Actions tab.
+  workflow_dispatch:
 
 permissions:
   contents: read
